@@ -1,0 +1,22 @@
+# Dependințe
+node_modules/
+
+# Build
+dist/
+build/
+
+# Cache Vite
+.vite/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Loguri
+*.log
+npm-debug.log*

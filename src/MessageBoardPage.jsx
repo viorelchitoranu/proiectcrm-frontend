@@ -12,6 +12,29 @@ import { loadSession } from "./auth/session.jsx";
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
 
+// ── Helper funcții pure (în afara componentei sau înainte de return) ──────────
+
+/**
+ * Adaugă un comentariu nou la un post, prevenind duplicate.
+ * Extrasă din handleNewComment/handleCommentAdded pentru a reduce
+ * adâncimea de nesting (SonarCloud: max 4 niveluri).
+ */
+const addCommentIfNew = (post, postId, comment) => {
+    if (post.id !== postId) return post;
+    const exists = post.comments?.some(c => c.id === comment.id);
+    if (exists) return post;
+    return { ...post, comments: [...(post.comments || []), comment] };
+};
+
+/**
+ * Șterge un comentariu dintr-un post după ID.
+ * Extrasă din handleCommentDeleted pentru a reduce adâncimea de nesting.
+ */
+const removeComment = (post, postId, commentId) => {
+    if (post.id !== postId) return post;
+    return { ...post, comments: (post.comments || []).filter(c => c.id !== commentId) };
+};
+
 /**
  * Pagina principală Message Board — stilul Facebook cu carduri.
  *
@@ -106,12 +129,7 @@ export default function MessageBoardPage({
      * Prevenim duplicate: dacă comentariul există deja (adăugat optimistic), îl ignorăm.
      */
     const handleNewComment = useCallback(({ postId, comment }) => {
-        setPosts(prev => prev.map(p => {
-            if (p.id !== postId) return p;
-            const exists = p.comments?.some(c => c.id === comment.id);
-            if (exists) return p;
-            return { ...p, comments: [...(p.comments || []), comment] };
-        }));
+        setPosts(prev => prev.map(p => addCommentIfNew(p, postId, comment)));
     }, []);
 
     /**
@@ -168,12 +186,7 @@ export default function MessageBoardPage({
      * WebSocket va aduce confirmarea (ignorăm duplicatul prin ID check).
      */
     const handleCommentAdded = useCallback((postId, dto) => {
-        setPosts(prev => prev.map(p => {
-            if (p.id !== postId) return p;
-            const exists = p.comments?.some(c => c.id === dto.id);
-            if (exists) return p;
-            return { ...p, comments: [...(p.comments || []), dto] };
-        }));
+        setPosts(prev => prev.map(p => addCommentIfNew(p, postId, dto)));
     }, []);
 
     /** Post actualizat după editare sau upload atașament (primit din PostCard). */
@@ -188,10 +201,7 @@ export default function MessageBoardPage({
 
     /** Comentariu șters de admin — eliminăm din lista comentariilor cardului. */
     const handleCommentDeleted = useCallback((postId, commentId) => {
-        setPosts(prev => prev.map(p => {
-            if (p.id !== postId) return p;
-            return { ...p, comments: (p.comments || []).filter(c => c.id !== commentId) };
-        }));
+        setPosts(prev => prev.map(p => removeComment(p, postId, commentId)));
     }, []);
 
     // ── Calcul restricții input ───────────────────────────────────────────────
@@ -210,6 +220,8 @@ export default function MessageBoardPage({
         }
         return ch;
     };
+
+
 
     // ── Render ────────────────────────────────────────────────────────────────
 

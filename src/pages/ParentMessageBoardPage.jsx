@@ -15,6 +15,32 @@ import MessageBoardPage from "../MessageBoardPage.jsx";
  * channelNames trimis la MessageBoardPage → afișează numele real al grupei
  * în selector în loc de "Grupa #5".
  */
+/**
+ * Colectează groupId + groupName unice din rezultatele Promise.allSettled
+ * ale apelurilor getChildEnrollments.
+ *
+ * Extrasă din useEffect pentru a reduce adâncimea de nesting (SonarCloud: max 4 niveluri).
+ * forEach-ul original era la nivelul 5: useEffect → IIFE → forEach(result) → forEach(enrollment).
+ *
+ * @param {PromiseSettledResult[]} results - rezultatele allSettled per copil
+ * @returns {Map<number, string>}          - map groupId → groupName
+ */
+function collectGroupMap(results) {
+    const groupMap = new Map();
+    results.forEach(result => {
+        if (result.status !== "fulfilled" || !Array.isArray(result.value)) return;
+        result.value.forEach(enrollment => {
+            if (!enrollment.groupId) return;
+            // groupName poate fi în câmpul groupName sau name
+            const name = enrollment.groupName
+                || enrollment.name
+                || `Grupă #${enrollment.groupId}`;
+            groupMap.set(enrollment.groupId, name);
+        });
+    });
+    return groupMap;
+}
+
 export default function ParentMessageBoardPage() {
     const [channels,     setChannels]     = useState(["GENERAL", "ANNOUNCEMENTS"]);
     const [channelNames, setChannelNames] = useState({});
@@ -41,18 +67,7 @@ export default function ParentMessageBoardPage() {
                 if (!active) return;
 
                 // Colectăm groupId + groupName unice din toate înscrieriileactive
-                const groupMap = new Map(); // groupId → groupName
-                enrollmentResults.forEach(result => {
-                    if (result.status === "fulfilled" && Array.isArray(result.value)) {
-                        result.value.forEach(enrollment => {
-                            if (enrollment.groupId) {
-                                // groupName poate fi în câmpul groupName sau name
-                                const name = enrollment.groupName || enrollment.name || `Grupă #${enrollment.groupId}`;
-                                groupMap.set(enrollment.groupId, name);
-                            }
-                        });
-                    }
-                });
+                const groupMap = collectGroupMap(enrollmentResults);
 
                 if (groupMap.size > 0) {
                     const groupChannels = [...groupMap.keys()].map(id => `GROUP_${id}`);

@@ -99,6 +99,22 @@ export default function TeacherGroupSessionsPage() {
         }
     };
 
+    /**
+     * Handler schimbare status prezență (PRESENT/ABSENT/EXCUSED) pentru un rând.
+     *
+     * Extrasă din coloana "Status" a tabelului de prezență pentru a reduce
+     * adâncimea de nesting (SonarCloud: max 4 niveluri).
+     * Originalul era la nivelul 5: columns → render → onChange → setAttRows → map.
+     *
+     * @param {string} key   - cheia unică a rândului (attendanceId sau childId-recovery)
+     * @param {string} value - noul status selectat (PRESENT / ABSENT / EXCUSED)
+     */
+    const handleAttStatusChange = useCallback((key, value) => {
+        setAttRows((prev) =>
+            prev.map((x) => attRowKey(x) === key ? { ...x, status: value } : x)
+        );
+    }, []);
+
     const columns = useMemo(
         () => [
             {
@@ -250,16 +266,9 @@ export default function TeacherGroupSessionsPage() {
                                     return (
                                         <Radio.Group
                                             value={normalizedValue}
-                                            onChange={(e) => {
-                                                const v = e.target.value;
-                                                const key = attRowKey(r);
-
-                                                setAttRows((prev) =>
-                                                    prev.map((x) =>
-                                                        attRowKey(x) === key ? { ...x, status: v } : x
-                                                    )
-                                                );
-                                            }}
+                                            onChange={(e) =>
+                                                handleAttStatusChange(attRowKey(r), e.target.value)
+                                            }
                                         >
                                             <Radio.Button value="PRESENT">PRESENT</Radio.Button>
                                             <Radio.Button value="ABSENT">ABSENT</Radio.Button>

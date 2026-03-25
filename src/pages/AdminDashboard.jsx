@@ -34,6 +34,34 @@ import { loadSession } from "../auth/session.jsx";
 
 const { Title, Text } = Typography;
 
+// ── Helper funcție pură (înaintea componentei) ────────────────────────────────
+
+/**
+ * Aplică rezultatele unui Promise.allSettled pe state setters.
+ * Extrasă din fetchAll pentru a reduce complexitatea ciclomatică
+ * (SonarCloud: 20 → ~5).
+ *
+ * @param results  - array de rezultate allSettled
+ * @param calls    - array de { key, label } corespunzătoare rezultatelor
+ * @param setters  - map key → setter function (ex: { groups: setGroups })
+ * @param onError  - callback pentru mesaje de eroare
+ * @param formatErr - funcție de formatare eroare HTTP
+ */
+function applyAllSettledResults(results, calls, setters, onError, formatErr) {
+  const errors = [];
+  results.forEach((res, idx) => {
+    const { key, label } = calls[idx];
+    const setter = setters[key];
+    if (res.status === "fulfilled") {
+      setter?.(Array.isArray(res.value) ? res.value : []);
+    } else {
+      errors.push(`${label}: ${formatErr(res.reason)}`);
+      setter?.([]);
+    }
+  });
+  if (errors.length > 0) onError(errors.join("\n"));
+}
+
 export default function AdminDashboard() {
   const session = loadSession();
 
@@ -88,36 +116,18 @@ export default function AdminDashboard() {
     setError(null);
 
     const calls = [
-      { key: "groups", label: "/api/admin/groups", fn: () => http.get("/api/admin/groups") },
-      { key: "schools", label: "/api/admin/schools", fn: () => http.get("/api/admin/schools") },
+      { key: "groups",   label: "/api/admin/groups",   fn: () => http.get("/api/admin/groups") },
+      { key: "schools",  label: "/api/admin/schools",  fn: () => http.get("/api/admin/schools") },
       { key: "teachers", label: "/api/admin/teachers", fn: () => http.get("/api/admin/teachers") },
-      { key: "courses", label: "/api/admin/courses", fn: () => http.get("/api/admin/courses") },
+      { key: "courses",  label: "/api/admin/courses",  fn: () => http.get("/api/admin/courses") },
     ];
 
     const results = await Promise.allSettled(calls.map((c) => c.fn()));
-    const errors = [];
 
-    results.forEach((res, idx) => {
-      const meta = calls[idx];
+    // setters map — elimină cele 8 if-uri din forEach
+    const setters = { groups: setGroups, schools: setSchools, teachers: setTeachers, courses: setCourses };
+    applyAllSettledResults(results, calls, setters, setError, formatHttpError);
 
-      if (res.status === "fulfilled") {
-        const data = res.value;
-        const arr = Array.isArray(data) ? data : [];
-
-        if (meta.key === "groups") setGroups(arr);
-        if (meta.key === "schools") setSchools(arr);
-        if (meta.key === "teachers") setTeachers(arr);
-        if (meta.key === "courses") setCourses(arr);
-      } else {
-        errors.push(`${meta.label}: ${formatHttpError(res.reason)}`);
-        if (meta.key === "groups") setGroups([]);
-        if (meta.key === "schools") setSchools([]);
-        if (meta.key === "teachers") setTeachers([]);
-        if (meta.key === "courses") setCourses([]);
-      }
-    });
-
-    if (errors.length > 0) setError(errors.join("\n"));
     setLoading(false);
   };
 

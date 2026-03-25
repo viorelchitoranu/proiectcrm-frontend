@@ -146,11 +146,11 @@ export default function AdminParentsPage() {
         }
     };
 
-    useEffect(() => { loadParents(); }, [q, page, size]); // eslint-disable-line
+    useEffect(() => { loadParents(); }, [q, page, size]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (selectedParentId) loadDetails(selectedParentId);
         else                  setDetails(null);
-    }, [selectedParentId]); // eslint-disable-line
+    }, [selectedParentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ══════════════════════════════════════════════════════════════════════════
     // Modul 2: Handlers adăugare copil
@@ -428,7 +428,7 @@ export default function AdminParentsPage() {
                 }
             },
         },
-    ], [navigate, togglingChildId]); // eslint-disable-line
+    ], [navigate, togglingChildId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ══════════════════════════════════════════════════════════════════════════
     // Render

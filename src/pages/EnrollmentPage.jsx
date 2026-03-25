@@ -40,6 +40,174 @@ const EMPTY_CHILD = {
     groupId: undefined,
 };
 
+// ── Helper funcții pure (în afara componentei) ────────────────────────────────
+
+/**
+ * Filtrează un obiect de state păstrând doar cheile prezente în currentIndexes.
+ * Folosit pentru a curăța state-urile indexate (groupOptions, groupLoading)
+ * când un copil e eliminat din formular.
+ *
+ * Optimizare: returnează referința originală `prev` dacă nu s-a schimbat nimic
+ * — previne re-render-uri inutile în React.
+ *
+ * @param {object} prev           - obiectul de state curent
+ * @param {Set<string>} validKeys - setul de chei valide (indexii copiilor activi)
+ * @returns {object}              - obiect filtrat sau `prev` dacă nu s-a schimbat
+ */
+function filterByIndexes(prev, validKeys) {
+    const next = {};
+    let changed = false;
+    Object.entries(prev).forEach(([key, value]) => {
+        if (validKeys.has(key)) next[key] = value;
+        else changed = true;
+    });
+    return changed ? next : prev;
+}
+
+/**
+ * Filtrează un ref object (nu un state) păstrând doar cheile valide.
+ * Același scop ca filterByIndexes, dar pentru ref-uri (requestTokenRef, previousFiltersRef).
+ *
+ * @param {object} obj            - obiectul ref curent
+ * @param {Set<string>} validKeys - setul de chei valide
+ * @returns {object}              - obiect filtrat nou
+ */
+function filterObjByIndexes(obj, validKeys) {
+    const next = {};
+    Object.entries(obj).forEach(([key, value]) => {
+        if (validKeys.has(key)) next[key] = value;
+    });
+    return next;
+}
+
+/**
+ * Încarcă grupele disponibile pentru un copil dintr-un formular de înscriere.
+ * Apelată din useEffect când se schimbă schoolId sau courseId pentru un copil.
+ *
+ * Mecanism de anulare a request-urilor concurente (race condition prevention):
+ *   Fiecare apel primește un token unic incrementat. Dacă token-ul din ref
+ *   s-a schimbat până când request-ul se termină → un apel mai nou a fost
+ *   inițiat → ignorăm răspunsul (stale request).
+ *
+ * Logică:
+ *   1. Dacă filtrele (schoolId + courseId) nu s-au schimbat → skip
+ *   2. Resetăm grupele și groupId selectat anterior
+ *   3. Dacă lipsește schoolId sau courseId → oprim loading, nu facem request
+ *   4. Altfel → incrementăm token, setăm loading, facem request
+ *   5. La succes: actualizăm opțiunile de grupe
+ *   6. La eroare: afișăm mesaj, resetăm opțiunile
+ *   7. În finally: oprim loading (doar dacă token-ul e încă valid)
+ *
+ * @param {object} child                  - datele copilului din Form.useWatch
+ * @param {number} idx                    - indexul copilului în lista formularului
+ * @param {object} ctx                    - context cu referințe și setteri React
+ * @param {object} ctx.form               - instanța Form Ant Design
+ * @param {object} ctx.requestTokenRef    - ref pentru token-uri de anulare
+ * @param {object} ctx.previousFiltersRef - ref pentru filtrele anterioare per index
+ * @param {Function} ctx.setGroupOptionsByIndex  - setter pentru opțiuni grupe
+ * @param {Function} ctx.setGroupLoadingByIndex  - setter pentru loading per index
+ */
+async function fetchGroupsForChild(child, idx, ctx) {
+    const { form, requestTokenRef, previousFiltersRef,
+        setGroupOptionsByIndex, setGroupLoadingByIndex } = ctx;
+
+    const schoolId = child?.schoolId;
+    const courseId = child?.courseId;
+    const criteria = `${schoolId ?? ""}|${courseId ?? ""}`;
+
+    // Skip dacă filtrele nu s-au schimbat față de ultima încărcare
+    if (previousFiltersRef.current[idx] === criteria) return;
+    previousFiltersRef.current[idx] = criteria;
+
+    // Resetăm grupă selectată și opțiunile vechi
+    form.setFieldValue(["children", idx, "groupId"], undefined);
+    setGroupOptionsByIndex((prev) => ({ ...prev, [idx]: [] }));
+
+    // Fără schoolId sau courseId → nu facem request, oprim loading
+    if (!schoolId || !courseId) {
+        setGroupLoadingByIndex((prev) => ({ ...prev, [idx]: false }));
+        return;
+    }
+
+    // Token unic — previne race conditions între request-uri concurente
+    const token = (requestTokenRef.current[idx] || 0) + 1;
+    requestTokenRef.current[idx] = token;
+    setGroupLoadingByIndex((prev) => ({ ...prev, [idx]: true }));
+
+    try {
+        const groupsRes = await http.get(
+            `/api/groups/active/by-school/${schoolId}/course/${courseId}`
+        );
+
+        // Ignorăm dacă un request mai nou a înlocuit acest token
+        if (requestTokenRef.current[idx] !== token) return;
+
+        setGroupOptionsByIndex((prev) => ({
+            ...prev,
+            [idx]: Array.isArray(groupsRes) ? groupsRes : [],
+        }));
+    } catch (e) {
+        if (requestTokenRef.current[idx] !== token) return;
+
+        message.error(
+            `Eroare la încărcarea grupelor pentru copilul ${idx + 1}: ${e.message}`
+        );
+        setGroupOptionsByIndex((prev) => ({ ...prev, [idx]: [] }));
+    } finally {
+        // Oprim loading doar dacă token-ul e încă valid (nu a fost suprascris)
+        if (requestTokenRef.current[idx] === token) {
+            setGroupLoadingByIndex((prev) => ({ ...prev, [idx]: false }));
+        }
+    }
+}
+
+/**
+ * Afișează rezumatul grupei selectate pentru un copil din formular.
+ *
+ * Extrasă ca componentă separată pentru a reduce adâncimea de nesting
+ * din JSX — IIFE-ul original (() => { ... })() era la nivelul 5,
+ * depășind limita SonarCloud de 4 niveluri.
+ *
+ * Comportament:
+ *   - Dacă groupId selectat nu mai există în lista de grupe disponibile
+ *     (ex: filtrele s-au schimbat după selecție) → mesaj de avertizare
+ *   - Altfel → afișează detaliile grupei: nume, curs, școală, perioadă,
+ *     orar, locuri rămase, capacitate maximă
+ *
+ * @param {object[]} childGroups  - lista de grupe disponibile pentru acest copil
+ * @param {number}   groupId      - ID-ul grupei selectate curent din formular
+ */
+function GroupSummary({ childGroups, groupId }) {
+    const selectedGroup = childGroups.find((g) => g.groupId === groupId);
+
+    if (!selectedGroup) {
+        return (
+            <Text type="secondary">
+                Grupa selectată nu mai este disponibilă.
+            </Text>
+        );
+    }
+
+    return (
+        <Space direction="vertical" size={4}>
+            <Text><Text strong>Grupă:</Text> {selectedGroup.groupName}</Text>
+            <Text><Text strong>Curs:</Text> {selectedGroup.courseName}</Text>
+            <Text><Text strong>Școală:</Text> {selectedGroup.schoolName}</Text>
+            <Text><Text strong>Adresă:</Text> {selectedGroup.schoolAddress}</Text>
+            <Text>
+                <Text strong>Perioadă:</Text>{" "}
+                {selectedGroup.startDate} – {selectedGroup.endDate}
+            </Text>
+            <Text><Text strong>Ora:</Text> {selectedGroup.sessionStartTime}</Text>
+            <Text><Text strong>Locuri rămase:</Text> {selectedGroup.remainingSpots}</Text>
+            <Text>
+                <Text strong>Capacitate:</Text>{" "}
+                {selectedGroup.maxCapacity ?? "Nelimitat"}
+            </Text>
+        </Space>
+    );
+}
+
 export default function EnrollmentPage() {
     const [form] = Form.useForm();
     const navigate = useNavigate();
@@ -122,109 +290,23 @@ export default function EnrollmentPage() {
     useEffect(() => {
         const currentIndexes = new Set(watchedChildren.map((_, idx) => String(idx)));
 
-        setGroupOptionsByIndex((prev) => {
-            const next = {};
-            let changed = false;
+        // Curățăm state-urile și ref-urile pentru copiii eliminați din formular
+        // — previne memory leaks și state stale pentru indecși care nu mai există
+        setGroupOptionsByIndex((prev) => filterByIndexes(prev, currentIndexes));
+        setGroupLoadingByIndex((prev) => filterByIndexes(prev, currentIndexes));
+        previousFiltersRef.current  = filterObjByIndexes(previousFiltersRef.current,  currentIndexes);
+        requestTokenRef.current     = filterObjByIndexes(requestTokenRef.current,     currentIndexes);
 
-            Object.entries(prev).forEach(([key, value]) => {
-                if (currentIndexes.has(key)) next[key] = value;
-                else changed = true;
-            });
-
-            return changed ? next : prev;
-        });
-
-        setGroupLoadingByIndex((prev) => {
-            const next = {};
-            let changed = false;
-
-            Object.entries(prev).forEach(([key, value]) => {
-                if (currentIndexes.has(key)) next[key] = value;
-                else changed = true;
-            });
-
-            return changed ? next : prev;
-        });
-
-        const nextPrevFilters = {};
-        Object.entries(previousFiltersRef.current).forEach(([key, value]) => {
-            if (currentIndexes.has(key)) nextPrevFilters[key] = value;
-        });
-        previousFiltersRef.current = nextPrevFilters;
-
-        const nextRequestTokens = {};
-        Object.entries(requestTokenRef.current).forEach(([key, value]) => {
-            if (currentIndexes.has(key)) nextRequestTokens[key] = value;
-        });
-        requestTokenRef.current = nextRequestTokens;
-
+        // Verificăm fiecare copil — dacă filtrele (școală + curs) s-au schimbat,
+        // declanșăm o nouă căutare de grupe
         watchedChildren.forEach((child, idx) => {
-            const schoolId = child?.schoolId;
-            const courseId = child?.courseId;
-            const criteria = `${schoolId ?? ""}|${courseId ?? ""}`;
-            const previousCriteria = previousFiltersRef.current[idx];
-
-            if (previousCriteria === criteria) return;
-
-            previousFiltersRef.current[idx] = criteria;
-
-            // resetam grupa cand se schimba filtrarea
-            form.setFieldValue(["children", idx, "groupId"], undefined);
-
-            // resetam optiunile vechi
-            setGroupOptionsByIndex((prev) => ({
-                ...prev,
-                [idx]: [],
-            }));
-
-            if (!schoolId || !courseId) {
-                setGroupLoadingByIndex((prev) => ({
-                    ...prev,
-                    [idx]: false,
-                }));
-                return;
-            }
-
-            const token = (requestTokenRef.current[idx] || 0) + 1;
-            requestTokenRef.current[idx] = token;
-
-            setGroupLoadingByIndex((prev) => ({
-                ...prev,
-                [idx]: true,
-            }));
-
-            (async () => {
-                try {
-                    const groupsRes = await http.get(
-                        `/api/groups/active/by-school/${schoolId}/course/${courseId}`
-                    );
-
-                    if (requestTokenRef.current[idx] !== token) return;
-
-                    setGroupOptionsByIndex((prev) => ({
-                        ...prev,
-                        [idx]: Array.isArray(groupsRes) ? groupsRes : [],
-                    }));
-                } catch (e) {
-                    if (requestTokenRef.current[idx] !== token) return;
-
-                    message.error(
-                        `Eroare la încărcarea grupelor pentru copilul ${idx + 1}: ${e.message}`
-                    );
-
-                    setGroupOptionsByIndex((prev) => ({
-                        ...prev,
-                        [idx]: [],
-                    }));
-                } finally {
-                    if (requestTokenRef.current[idx] === token) {
-                        setGroupLoadingByIndex((prev) => ({
-                            ...prev,
-                            [idx]: false,
-                        }));
-                    }
-                }
-            })();
+            fetchGroupsForChild(child, idx, {
+                form,
+                requestTokenRef,
+                previousFiltersRef,
+                setGroupOptionsByIndex,
+                setGroupLoadingByIndex,
+            });
         });
     }, [watchedChildren, form]);
 
@@ -753,97 +835,11 @@ export default function EnrollmentPage() {
                                                             size="small"
                                                             title="Rezumat grupă"
                                                         >
-                                                            {(() => {
-                                                                const selectedGroup =
-                                                                    childGroups.find(
-                                                                        (g) =>
-                                                                            g.groupId ===
-                                                                            currentChild.groupId
-                                                                    );
-
-                                                                if (!selectedGroup) {
-                                                                    return (
-                                                                        <Text type="secondary">
-                                                                            Grupa selectată nu mai este disponibilă.
-                                                                        </Text>
-                                                                    );
-                                                                }
-
-                                                                return (
-                                                                    <Space
-                                                                        direction="vertical"
-                                                                        size={4}
-                                                                    >
-                                                                        <Text>
-                                                                            <Text strong>
-                                                                                Grupă:
-                                                                            </Text>{" "}
-                                                                            {
-                                                                                selectedGroup.groupName
-                                                                            }
-                                                                        </Text>
-                                                                        <Text>
-                                                                            <Text strong>
-                                                                                Curs:
-                                                                            </Text>{" "}
-                                                                            {
-                                                                                selectedGroup.courseName
-                                                                            }
-                                                                        </Text>
-                                                                        <Text>
-                                                                            <Text strong>
-                                                                                Școală:
-                                                                            </Text>{" "}
-                                                                            {
-                                                                                selectedGroup.schoolName
-                                                                            }
-                                                                        </Text>
-                                                                        <Text>
-                                                                            <Text strong>
-                                                                                Adresă:
-                                                                            </Text>{" "}
-                                                                            {
-                                                                                selectedGroup.schoolAddress
-                                                                            }
-                                                                        </Text>
-                                                                        <Text>
-                                                                            <Text strong>
-                                                                                Perioadă:
-                                                                            </Text>{" "}
-                                                                            {
-                                                                                selectedGroup.startDate
-                                                                            }{" "}
-                                                                            –{" "}
-                                                                            {
-                                                                                selectedGroup.endDate
-                                                                            }
-                                                                        </Text>
-                                                                        <Text>
-                                                                            <Text strong>
-                                                                                Ora:
-                                                                            </Text>{" "}
-                                                                            {
-                                                                                selectedGroup.sessionStartTime
-                                                                            }
-                                                                        </Text>
-                                                                        <Text>
-                                                                            <Text strong>
-                                                                                Locuri rămase:
-                                                                            </Text>{" "}
-                                                                            {
-                                                                                selectedGroup.remainingSpots
-                                                                            }
-                                                                        </Text>
-                                                                        <Text>
-                                                                            <Text strong>
-                                                                                Capacitate:
-                                                                            </Text>{" "}
-                                                                            {selectedGroup.maxCapacity ??
-                                                                                "Nelimitat"}
-                                                                        </Text>
-                                                                    </Space>
-                                                                );
-                                                            })()}
+                                                            {/* GroupSummary extrasă din IIFE — reduce nesting la max 3 niveluri */}
+                                                            <GroupSummary
+                                                                childGroups={childGroups}
+                                                                groupId={currentChild.groupId}
+                                                            />
                                                         </Card>
                                                     ) : null}
                                                 </Card>

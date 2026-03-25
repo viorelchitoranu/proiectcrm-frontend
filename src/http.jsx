@@ -28,16 +28,38 @@ function buildUrl(path, query) {
     return url.toString().replace(window.location.origin, "");
 }
 
+/**
+ * Citește cookie-ul XSRF-TOKEN setat de Spring Security.
+ * Backend-ul trimite acest cookie la primul request autentificat.
+ * Frontend-ul îl trimite înapoi în header-ul X-XSRF-TOKEN pentru
+ * a dovedi că cererea vine din același origin (protecție CSRF).
+ */
+function getCsrfToken() {
+    return document.cookie
+        .split("; ")
+        .find(row => row.startsWith("XSRF-TOKEN="))
+        ?.split("=")[1] ?? "";
+}
+
 async function request(method, path, { query, body } = {}) {
     const url = buildUrl(path, query);
 
     let res;
     try {
         const hasBody = body !== undefined && body !== null;
+        const isReadOnly = method === "GET" || method === "HEAD" || method === "OPTIONS";
+
+        // X-XSRF-TOKEN: trimis la toate request-urile care modifică starea (non-GET)
+        // GET/HEAD/OPTIONS sunt safe methods și nu necesită CSRF token
+        const csrfHeader = isReadOnly ? {} : { "X-XSRF-TOKEN": getCsrfToken() };
+
         res = await fetch(url, {
             method,
             credentials: "include",
-            headers: hasBody ? { "Content-Type": "application/json" } : undefined,
+            headers: {
+                ...(hasBody ? { "Content-Type": "application/json" } : {}),
+                ...csrfHeader,
+            },
             body: hasBody ? JSON.stringify(body) : undefined,
         });
     } catch {

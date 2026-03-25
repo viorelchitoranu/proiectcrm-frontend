@@ -41,6 +41,33 @@ function getCsrfToken() {
         ?.split("=")[1] ?? "";
 }
 
+/**
+ * Parsează corpul unui response HTTP cu eroare (non-2xx).
+ *
+ * Extrasă din request() pentru a reduce complexitatea ciclomatică cu 1 punct
+ * (SonarCloud: 16 → 15) — blocul if/else de parsing contribuia la complexitate.
+ *
+ * Încearcă să parseze JSON, cu fallback pe text simplu.
+ * Erorile de parsing sunt înghițite — nu vrem să ascundem eroarea originală.
+ *
+ * @param {Response} res - response-ul fetch cu status non-2xx
+ * @returns {Promise<{details: object|null, rawText: string}>}
+ */
+async function parseErrorResponse(res) {
+    const contentType = res.headers.get("content-type") || "";
+    let details = null;
+    let rawText = "";
+
+    if (contentType.includes("application/json")) {
+        try { details = await res.json(); } catch { details = null; }
+        try { rawText = JSON.stringify(details); } catch { rawText = ""; }
+    } else {
+        rawText = await res.text().catch(() => "");
+    }
+
+    return { details, rawText };
+}
+
 async function request(method, path, { query, body } = {}) {
     const url = buildUrl(path, query);
 
@@ -67,17 +94,7 @@ async function request(method, path, { query, body } = {}) {
     }
 
     if (!res.ok) {
-        const contentType = res.headers.get("content-type") || "";
-        let details = null;
-        let rawText = "";
-
-        if (contentType.includes("application/json")) {
-            try { details = await res.json(); } catch { details = null; }
-            try { rawText = JSON.stringify(details); } catch { rawText = ""; }
-        } else {
-            rawText = await res.text().catch(() => "");
-        }
-
+        const { details, rawText } = await parseErrorResponse(res);
         throw new HttpError(res.status, res.statusText, details, rawText);
     }
 

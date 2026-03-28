@@ -19,6 +19,7 @@ import { useNavigate, Link, useLocation, Outlet } from "react-router-dom";
 import { loadSession }    from "../auth/session.jsx";
 import { logoutAndClear } from "../auth/authApi.js";
 import { useTenantConfig } from "../useTenantConfig.js";
+import { MailOutlined } from "@ant-design/icons";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -35,6 +36,8 @@ const ROUTE_KEYS = [
     ["/admin/waitlist",           "waitlist"],
     ["/admin/board",              "board"],
     ["/admin/logs",               "logs"],
+    ["/admin/charts",             "charts"],
+    ["/admin/calendar",           "calendar"],
 ];
 
 export default function AdminLayout({ children }) {
@@ -91,6 +94,10 @@ export default function AdminLayout({ children }) {
                         { key: "waitlist",         icon: <ClockCircleOutlined />,  label: <Link to="/admin/waitlist">Listă așteptare</Link> },
                         { key: "board",            icon: <MessageOutlined />,      label: <Link to="/admin/board">Forum</Link> },
                         { key: "logs",             icon: <FileTextOutlined />,     label: <Link to="/admin/logs">Loguri server</Link> },
+                        { key: "emailTemplates",   icon: <MailOutlined />,         label: <Link to="/admin/email-templates">Template-uri Email</Link> },
+                        { key: "charts",           icon: <BarChartOutlined />,     label: <Link to="/admin/charts">Statistici</Link> },
+                        { key: "calendar",         icon: <CalendarOutlined />,     label: <Link to="/admin/calendar">Calendar</Link> },
+
                     ]}
                 />
             </Sider>

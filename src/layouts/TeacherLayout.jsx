@@ -6,6 +6,7 @@ import {
     LockOutlined,
     LogoutOutlined,
     MessageOutlined,
+    CalendarOutlined,
 } from "@ant-design/icons";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { loadSession }     from "../auth/session.jsx";
@@ -28,10 +29,12 @@ export default function TeacherLayout() {
 
     const pathname = location.pathname;
     const selectedKey =
+        pathname.startsWith("/teacher/calendar") ? "calendar" :
         pathname.startsWith("/teacher/board")    ? "board"    :
         pathname.startsWith("/teacher/groups")   ? "groups"   :
         pathname.startsWith("/teacher/requests") ? "requests" :
         pathname.startsWith("/teacher/password") ? "password" :
+       
         "groups";
 
     return (
@@ -65,6 +68,7 @@ export default function TeacherLayout() {
                         { key: "requests", icon: <InboxOutlined />,   label: <Link to="/teacher/requests">Cereri părinți</Link> },
                         { key: "board",    icon: <MessageOutlined />, label: <Link to="/teacher/board">Forum</Link> },
                         { key: "password", icon: <LockOutlined />,    label: <Link to="/teacher/password">Schimbă parola</Link> },
+                        { key: "calendar", icon: <CalendarOutlined />,label: <Link to="/teacher/calendar">Calendar</Link> }
                     ]}
                 />
             </Sider>

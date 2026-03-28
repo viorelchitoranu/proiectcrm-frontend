@@ -28,10 +28,12 @@ export default function ParentLayout() {
 
     const pathname = location.pathname;
     const selectedKey =
+        pathname.startsWith("/parent/calendar") ? "calendar" :
         pathname.startsWith("/parent/board")    ? "board"    :
         pathname.startsWith("/parent/children") ? "children" :
         pathname.startsWith("/parent/schedule") ? "schedule" :
         pathname.startsWith("/parent/password") ? "password" :
+            
         "children";
 
     return (
@@ -65,6 +67,7 @@ export default function ParentLayout() {
                         { key: "schedule", icon: <CalendarOutlined />, label: <Link to="/parent/schedule">Program</Link> },
                         { key: "board",    icon: <MessageOutlined />,  label: <Link to="/parent/board">Forum</Link> },
                         { key: "password", icon: <LockOutlined />,     label: <Link to="/parent/password">Schimbă parola</Link> },
+                        { key: "calendar", icon: <CalendarOutlined />, label: <Link to="/parent/calendar">Calendar</Link> }
                     ]}
                 />
             </Sider>

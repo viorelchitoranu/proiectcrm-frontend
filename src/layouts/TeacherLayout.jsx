@@ -16,6 +16,20 @@ import { useTenantConfig } from "../useTenantConfig.js";
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
+// ── Extras din componentă pentru a reduce Cognitive Complexity ────────────────
+const TEACHER_ROUTES = [
+    ["/teacher/calendar", "calendar"],
+    ["/teacher/board",    "board"],
+    ["/teacher/groups",   "groups"],
+    ["/teacher/requests", "requests"],
+    ["/teacher/password", "password"],
+];
+
+function getTeacherSelectedKey(pathname) {
+    const match = TEACHER_ROUTES.find(([path]) => pathname.startsWith(path));
+    return match ? match[1] : "groups";
+}
+
 export default function TeacherLayout() {
     const navigate   = useNavigate();
     const location   = useLocation();
@@ -27,15 +41,7 @@ export default function TeacherLayout() {
         navigate("/login", { replace: true });
     };
 
-    const pathname = location.pathname;
-    const selectedKey =
-        pathname.startsWith("/teacher/calendar") ? "calendar" :
-        pathname.startsWith("/teacher/board")    ? "board"    :
-        pathname.startsWith("/teacher/groups")   ? "groups"   :
-        pathname.startsWith("/teacher/requests") ? "requests" :
-        pathname.startsWith("/teacher/password") ? "password" :
-       
-        "groups";
+    const selectedKey = getTeacherSelectedKey(location.pathname);
 
     return (
         <Layout style={{ minHeight: "100vh" }}>
@@ -66,9 +72,9 @@ export default function TeacherLayout() {
                     items={[
                         { key: "groups",   icon: <TeamOutlined />,    label: <Link to="/teacher/groups">Grupele mele</Link> },
                         { key: "requests", icon: <InboxOutlined />,   label: <Link to="/teacher/requests">Cereri părinți</Link> },
+                        { key: "calendar", icon: <CalendarOutlined />,label: <Link to="/teacher/calendar">Calendar</Link> },
                         { key: "board",    icon: <MessageOutlined />, label: <Link to="/teacher/board">Forum</Link> },
                         { key: "password", icon: <LockOutlined />,    label: <Link to="/teacher/password">Schimbă parola</Link> },
-                        { key: "calendar", icon: <CalendarOutlined />,label: <Link to="/teacher/calendar">Calendar</Link> }
                     ]}
                 />
             </Sider>

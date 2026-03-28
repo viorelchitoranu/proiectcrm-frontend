@@ -1,18 +1,38 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Button, Card, Col, Descriptions, Row,
     Space, Statistic, Table, Tag, Typography, message,
 } from "antd";
 import { DownloadOutlined, EyeOutlined, PrinterOutlined, ReloadOutlined } from "@ant-design/icons";
 import { http, HttpError } from "../http.jsx";
-import { usePrintAndExport } from "../usePrintAndExport.js"; // ← calea corectă: src/
+import { usePrintAndExport } from "../usePrintAndExport.js";
 
 const { Title, Text } = Typography;
 
-/**
- * Înlocuiește AdminReports.jsx — adaugă export Excel și print față de versiunea veche.
- * Rută: /admin/reports (aceeași ca înainte)
- */
+// ── Render functions extrase pentru a reduce Cognitive Complexity ─────────────
+function renderEnrolled(v)  { return <Tag color="blue">{v}</Tag>; }
+function renderTaught(v)    { return <Tag color="green">{v}</Tag>; }
+function renderCanceled(v)  { return v > 0 ? <Tag color="red">{v}</Tag> : <Tag>{v}</Tag>; }
+function renderPlanned(v)   { return <Tag color="orange">{v}</Tag>; }
+
+const EXPORT_COLUMNS = [
+    { title: "Grupă",         dataIndex: "groupName" },
+    { title: "Curs",          dataIndex: "courseName" },
+    { title: "Școală",        dataIndex: "schoolName" },
+    { title: "Înscriși",      dataIndex: "enrolledChildren" },
+    { title: "Total sesiuni", dataIndex: "totalSessions" },
+    { title: "Ținute",        dataIndex: "taughtSessions" },
+    { title: "Anulate",       dataIndex: "canceledSessions" },
+    { title: "Planificate",   dataIndex: "plannedSessions" },
+];
+
+const RENDER_MAP = {
+    enrolledChildren: renderEnrolled,
+    taughtSessions:   renderTaught,
+    canceledSessions: renderCanceled,
+    plannedSessions:  renderPlanned,
+};
+
 export default function AdminReportsEnhanced() {
     const [rows,           setRows]           = useState([]);
     const [loading,        setLoading]        = useState(false);
@@ -21,26 +41,11 @@ export default function AdminReportsEnhanced() {
 
     const { printRef, handlePrint, exportExcel } = usePrintAndExport("Raport Grupe");
 
-    const exportColumns = [
-        { title: "Grupă",        dataIndex: "groupName" },
-        { title: "Curs",         dataIndex: "courseName" },
-        { title: "Școală",       dataIndex: "schoolName" },
-        { title: "Înscriși",     dataIndex: "enrolledChildren" },
-        { title: "Total sesiuni",dataIndex: "totalSessions" },
-        { title: "Ținute",       dataIndex: "taughtSessions" },
-        { title: "Anulate",      dataIndex: "canceledSessions" },
-        { title: "Planificate",  dataIndex: "plannedSessions" },
-    ];
-
     const columns = [
-        ...exportColumns.map(c => ({
+        ...EXPORT_COLUMNS.map(c => ({
             ...c,
-            key: c.dataIndex,
-            render: c.dataIndex === "enrolledChildren" ? v => <Tag color="blue">{v}</Tag>
-                  : c.dataIndex === "taughtSessions"   ? v => <Tag color="green">{v}</Tag>
-                  : c.dataIndex === "canceledSessions" ? v => v > 0 ? <Tag color="red">{v}</Tag> : <Tag>{v}</Tag>
-                  : c.dataIndex === "plannedSessions"  ? v => <Tag color="orange">{v}</Tag>
-                  : undefined,
+            key:    c.dataIndex,
+            render: RENDER_MAP[c.dataIndex],
         })),
         {
             title: "Acțiuni", key: "actions",
@@ -108,10 +113,14 @@ export default function AdminReportsEnhanced() {
                 <Space style={{ marginBottom: 16 }} wrap>
                     <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Reîncarcă</Button>
                     <Button icon={<PrinterOutlined />} onClick={handlePrint} disabled={rows.length === 0}>Print</Button>
-                    <Button icon={<DownloadOutlined />} onClick={() => exportExcel(rows, exportColumns, "raport_grupe", "Grupe")} disabled={rows.length === 0}>
+                    <Button icon={<DownloadOutlined />}
+                        onClick={() => exportExcel(rows, EXPORT_COLUMNS, "raport_grupe", "Grupe")}
+                        disabled={rows.length === 0}>
                         Export Excel
                     </Button>
-                    <Button icon={<DownloadOutlined />} onClick={exportCsv} disabled={rows.length === 0}>Export CSV</Button>
+                    <Button icon={<DownloadOutlined />} onClick={exportCsv} disabled={rows.length === 0}>
+                        Export CSV
+                    </Button>
                 </Space>
 
                 <div ref={printRef}>

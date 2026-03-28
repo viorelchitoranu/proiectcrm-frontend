@@ -15,6 +15,20 @@ import { useTenantConfig } from "../useTenantConfig.js";
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
+// ── Extras din componentă pentru a reduce Cognitive Complexity ────────────────
+const PARENT_ROUTES = [
+    ["/parent/calendar", "calendar"],
+    ["/parent/board",    "board"],
+    ["/parent/children", "children"],
+    ["/parent/schedule", "schedule"],
+    ["/parent/password", "password"],
+];
+
+function getParentSelectedKey(pathname) {
+    const match = PARENT_ROUTES.find(([path]) => pathname.startsWith(path));
+    return match ? match[1] : "children";
+}
+
 export default function ParentLayout() {
     const navigate   = useNavigate();
     const location   = useLocation();
@@ -26,15 +40,7 @@ export default function ParentLayout() {
         navigate("/login", { replace: true });
     };
 
-    const pathname = location.pathname;
-    const selectedKey =
-        pathname.startsWith("/parent/calendar") ? "calendar" :
-        pathname.startsWith("/parent/board")    ? "board"    :
-        pathname.startsWith("/parent/children") ? "children" :
-        pathname.startsWith("/parent/schedule") ? "schedule" :
-        pathname.startsWith("/parent/password") ? "password" :
-            
-        "children";
+    const selectedKey = getParentSelectedKey(location.pathname);
 
     return (
         <Layout style={{ minHeight: "100vh" }}>
@@ -65,9 +71,9 @@ export default function ParentLayout() {
                     items={[
                         { key: "children", icon: <UserOutlined />,     label: <Link to="/parent/children">Copiii mei</Link> },
                         { key: "schedule", icon: <CalendarOutlined />, label: <Link to="/parent/schedule">Program</Link> },
+                        { key: "calendar", icon: <CalendarOutlined />, label: <Link to="/parent/calendar">Calendar</Link> },
                         { key: "board",    icon: <MessageOutlined />,  label: <Link to="/parent/board">Forum</Link> },
                         { key: "password", icon: <LockOutlined />,     label: <Link to="/parent/password">Schimbă parola</Link> },
-                        { key: "calendar", icon: <CalendarOutlined />, label: <Link to="/parent/calendar">Calendar</Link> }
                     ]}
                 />
             </Sider>

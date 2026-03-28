@@ -18,7 +18,7 @@ import {
 import {ReloadOutlined, SwapOutlined} from "@ant-design/icons";
 import {useNavigate, useSearchParams} from "react-router-dom";
 
-import {adminApi} from "../adminApi.js";
+import {adminApi} from "../adminapi.js";
 import {loadSession} from "../auth/session.jsx";
 
 const {Title, Text} = Typography;

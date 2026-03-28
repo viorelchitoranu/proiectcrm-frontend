@@ -48,7 +48,7 @@ import {
     CheckCircleOutlined,
 } from "@ant-design/icons";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { adminApi } from "../adminApi.js";
+import { adminApi } from "../adminapi.js";
 
 const { Title, Text } = Typography;
 

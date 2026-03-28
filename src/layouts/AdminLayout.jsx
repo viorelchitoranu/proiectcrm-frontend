@@ -11,35 +11,37 @@ import {
     BarChartOutlined,
     DatabaseOutlined,
     SolutionOutlined,
-    FileTextOutlined,   // NOU — icon pentru Loguri
-    ClockCircleOutlined,   // icon pentru Lista de așteptare
-    MessageOutlined,     // NOU — icon pentru Forum
+    FileTextOutlined,
+    ClockCircleOutlined,
+    MessageOutlined,
 } from "@ant-design/icons";
 import { useNavigate, Link, useLocation, Outlet } from "react-router-dom";
-import { loadSession } from "../auth/session.jsx";
+import { loadSession }    from "../auth/session.jsx";
 import { logoutAndClear } from "../auth/authApi.js";
+import { useTenantConfig } from "../useTenantConfig.js";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
 const ROUTE_KEYS = [
-    ["/admin/schools",             "schools"],
-    ["/admin/courses",             "courses"],
-    ["/admin/teachers",            "teachers"],
-    ["/admin/children",            "children"],
-    ["/admin/parents",             "parents"],
-    ["/admin/holidays",            "holidays"],
-    ["/admin/reports",             "reports"],
-    ["/admin/attendance-archive",  "attendanceArchive"],
-    ["/admin/waitlist",            "waitlist"],   // NOU
-    ["/admin/board",               "board"],    // NOU
-    ["/admin/logs",                "logs"],  // NOU
+    ["/admin/schools",            "schools"],
+    ["/admin/courses",            "courses"],
+    ["/admin/teachers",           "teachers"],
+    ["/admin/children",           "children"],
+    ["/admin/parents",            "parents"],
+    ["/admin/holidays",           "holidays"],
+    ["/admin/reports",            "reports"],
+    ["/admin/attendance-archive", "attendanceArchive"],
+    ["/admin/waitlist",           "waitlist"],
+    ["/admin/board",              "board"],
+    ["/admin/logs",               "logs"],
 ];
 
 export default function AdminLayout({ children }) {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const session  = loadSession();
+    const navigate        = useNavigate();
+    const location        = useLocation();
+    const session         = loadSession();
+    const { config }      = useTenantConfig();
 
     const onLogout = async () => {
         await logoutAndClear();
@@ -53,7 +55,18 @@ export default function AdminLayout({ children }) {
         <Layout style={{ minHeight: "100vh" }}>
             <Sider breakpoint="lg" collapsedWidth="0">
                 <div style={{ padding: 16 }}>
-                    <Text strong style={{ color: "white" }}>CRM Admin</Text>
+                    {/* Logo sau nume organizație — din TenantConfig */}
+                    {config.logoUrl ? (
+                        <img
+                            src={config.logoUrl}
+                            alt={config.name}
+                            style={{ maxHeight: 36, maxWidth: "100%", objectFit: "contain" }}
+                        />
+                    ) : (
+                        <Text strong style={{ color: "white", fontSize: 15 }}>
+                            {config.name}
+                        </Text>
+                    )}
                     <div style={{ marginTop: 8 }}>
                         <Text style={{ color: "rgba(255,255,255,0.75)" }}>
                             {session?.firstName} {session?.lastName}
@@ -66,69 +79,18 @@ export default function AdminLayout({ children }) {
                     mode="inline"
                     selectedKeys={[selectedKey]}
                     items={[
-                        {
-                            key:   "dashboard",
-                            icon:  <DashboardOutlined />,
-                            label: <Link to="/admin">Dashboard</Link>,
-                        },
-                        {
-                            key:   "schools",
-                            icon:  <HomeOutlined />,
-                            label: <Link to="/admin/schools">Școli</Link>,
-                        },
-                        {
-                            key:   "courses",
-                            icon:  <BookOutlined />,
-                            label: <Link to="/admin/courses">Cursuri</Link>,
-                        },
-                        {
-                            key:   "teachers",
-                            icon:  <SolutionOutlined />,
-                            label: <Link to="/admin/teachers">Profesori</Link>,
-                        },
-                        {
-                            key:   "children",
-                            icon:  <TeamOutlined />,
-                            label: <Link to="/admin/children">Copii</Link>,
-                        },
-                        {
-                            key:   "parents",
-                            icon:  <UserOutlined />,
-                            label: <Link to="/admin/parents">Părinți</Link>,
-                        },
-                        {
-                            key:   "holidays",
-                            icon:  <CalendarOutlined />,
-                            label: <Link to="/admin/holidays">Zile libere</Link>,
-                        },
-                        {
-                            key:   "reports",
-                            icon:  <BarChartOutlined />,
-                            label: <Link to="/admin/reports">Reports</Link>,
-                        },
-                        {
-                            key:   "attendanceArchive",
-                            icon:  <DatabaseOutlined />,
-                            label: <Link to="/admin/attendance-archive">Attendance Archive</Link>,
-                        },
-                        // ── NOU: Listă de așteptare ──────────────────────────
-                        {
-                            key:   "waitlist",
-                            icon:  <ClockCircleOutlined />,
-                            label: <Link to="/admin/waitlist">Listă așteptare</Link>,
-                        },
-                        // ── NOU: Forum ─────────────────────────────────────────
-                        {
-                            key:   "board",
-                            icon:  <MessageOutlined />,
-                            label: <Link to="/admin/board">Forum</Link>,
-                        },
-                        // ── NOU: Loguri server ──────────────────────────────
-                        {
-                            key:   "logs",
-                            icon:  <FileTextOutlined />,
-                            label: <Link to="/admin/logs">Loguri server</Link>,
-                        },
+                        { key: "dashboard",        icon: <DashboardOutlined />,    label: <Link to="/admin">Dashboard</Link> },
+                        { key: "schools",          icon: <HomeOutlined />,         label: <Link to="/admin/schools">Școli</Link> },
+                        { key: "courses",          icon: <BookOutlined />,         label: <Link to="/admin/courses">Cursuri</Link> },
+                        { key: "teachers",         icon: <SolutionOutlined />,     label: <Link to="/admin/teachers">Profesori</Link> },
+                        { key: "children",         icon: <TeamOutlined />,         label: <Link to="/admin/children">Copii</Link> },
+                        { key: "parents",          icon: <UserOutlined />,         label: <Link to="/admin/parents">Părinți</Link> },
+                        { key: "holidays",         icon: <CalendarOutlined />,     label: <Link to="/admin/holidays">Zile libere</Link> },
+                        { key: "reports",          icon: <BarChartOutlined />,     label: <Link to="/admin/reports">Reports</Link> },
+                        { key: "attendanceArchive",icon: <DatabaseOutlined />,     label: <Link to="/admin/attendance-archive">Attendance Archive</Link> },
+                        { key: "waitlist",         icon: <ClockCircleOutlined />,  label: <Link to="/admin/waitlist">Listă așteptare</Link> },
+                        { key: "board",            icon: <MessageOutlined />,      label: <Link to="/admin/board">Forum</Link> },
+                        { key: "logs",             icon: <FileTextOutlined />,     label: <Link to="/admin/logs">Loguri server</Link> },
                     ]}
                 />
             </Sider>

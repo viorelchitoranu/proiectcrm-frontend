@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 
 import EnrollmentPage              from "./pages/EnrollmentPage.jsx";
-import WaitlistPage                from "./pages/WaitlistPage.jsx";          // NOU
+import WaitlistPage                from "./pages/WaitlistPage.jsx";
 import LoginPage                   from "./pages/LoginPage.jsx";
 
 import AdminLayout                 from "./layouts/AdminLayout.jsx";
@@ -14,9 +14,8 @@ import AdminTeachers               from "./pages/AdminTeachers.jsx";
 import AdminHolidays               from "./pages/AdminHolidays.jsx";
 import AdminAttendanceArchivePage  from "./pages/AdminAttendanceArchivePage.jsx";
 import AdminParentsPage            from "./pages/AdminParentsPage.jsx";
-import AdminLogsPage               from "./pages/AdminLogsPage.jsx";  // NOU
-import AdminWaitlistPage           from "./pages/AdminWaitlistPage.jsx";     // NOU
-import AdminMessageBoardPage       from "./pages/AdminMessageBoardPage.jsx";   // NOU
+import AdminWaitlistPage           from "./pages/AdminWaitlistPage.jsx";
+import AdminMessageBoardPage       from "./pages/AdminMessageBoardPage.jsx";
 import AdminEmailTemplatesPage     from "./pages/AdminEmailTemplatesPage.jsx";
 import AdminDashboardPage          from "./pages/AdminDashboardPage.jsx";
 import AdminCalendarPage           from "./pages/AdminCalendarPage.jsx";
@@ -27,7 +26,7 @@ import TeacherGroupsPage           from "./pages/TeacherGroupsPage.jsx";
 import TeacherGroupSessionsPage    from "./pages/TeacherGroupSessionsPage.jsx";
 import TeacherRequestsPage         from "./pages/TeacherRequestsPage.jsx";
 import TeacherChangePasswordPage   from "./pages/TeacherChangePasswordPage.jsx";
-import TeacherMessageBoardPage     from "./pages/TeacherMessageBoardPage.jsx"; // NOU
+import TeacherMessageBoardPage     from "./pages/TeacherMessageBoardPage.jsx";
 import TeacherCalendarPage         from "./pages/TeacherCalendarPage.jsx";
 
 import ParentLayout                from "./layouts/ParentLayout.jsx";
@@ -36,13 +35,13 @@ import ParentChildEnrollmentsPage  from "./pages/ParentChildEnrollmentsPage.jsx"
 import ParentSchedulePage          from "./pages/ParentSchedulePage.jsx";
 import ParentGroupSchedulePage     from "./pages/ParentGroupSchedulePage.jsx";
 import ParentChangePasswordPage    from "./pages/ParentChangePasswordPage.jsx";
-import ParentMessageBoardPage      from "./pages/ParentMessageBoardPage.jsx";  // NOU
+import ParentMessageBoardPage      from "./pages/ParentMessageBoardPage.jsx";
 import ParentCalendarPage          from "./pages/ParentCalendarPage.jsx";
 
 import ProtectedRoute              from "./auth/ProtectedRoute.jsx";
 import { authApi }                 from "./auth/authApi.js";
 import { clearSession, saveSession, isRememberedSession } from "./auth/session.jsx";
-import ErrorBoundary               from "./ErrorBoundary.jsx";  // NOU
+import ErrorBoundary               from "./ErrorBoundary.jsx";
 
 export default function App() {
     const [bootstrapping, setBootstrapping] = useState(true);
@@ -72,7 +71,6 @@ export default function App() {
     return (
         <Routes>
             <Route path="/"       element={<Navigate to="/enroll" replace />} />
-            {/* Rută publică — accesibilă fără autentificare, linkuită din EnrollmentPage */}
             <Route path="/waitlist" element={<WaitlistPage />} />
             <Route path="/enroll" element={<EnrollmentPage />} />
             <Route path="/login"  element={<LoginPage />} />
@@ -82,35 +80,26 @@ export default function App() {
                 path="/admin"
                 element={
                     <ProtectedRoute allowRoles={["ADMIN"]}>
-                        {/*
-                            ErrorBoundary la nivel de layout admin:
-                            orice crash JavaScript în orice pagină de admin va fi
-                            interceptat, logat la backend și afișat ca mesaj prietenos.
-                            Nu mai există ecran alb pentru admin.
-                        */}
                         <ErrorBoundary section="AdminLayout">
                             <AdminLayout />
                         </ErrorBoundary>
                     </ProtectedRoute>
                 }
             >
-                <Route index                    element={<AdminDashboard />} />
-                <Route path="children"          element={<AdminChildren />} />
-                <Route path="schools"           element={<AdminSchools />} />
-                <Route path="courses"           element={<AdminCourses />} />
-                <Route path="teachers"          element={<AdminTeachers />} />
-                <Route path="holidays"          element={<AdminHolidays />} />
+                <Route index                     element={<AdminDashboard />} />
+                <Route path="children"           element={<AdminChildren />} />
+                <Route path="schools"            element={<AdminSchools />} />
+                <Route path="courses"            element={<AdminCourses />} />
+                <Route path="teachers"           element={<AdminTeachers />} />
+                <Route path="holidays"           element={<AdminHolidays />} />
                 <Route path="attendance-archive" element={<AdminAttendanceArchivePage />} />
-                <Route path="parents"           element={<AdminParentsPage />} />
-                <Route path="waitlist"           element={<AdminWaitlistPage />} />  {/* NOU */}
-                {/* NOU: pagina de loguri server */}
-                <Route path="logs"              element={<AdminLogsPage />} />
-                {/* NOU: Forum admin — acces la toate canalele */}
+                <Route path="parents"            element={<AdminParentsPage />} />
+                <Route path="waitlist"           element={<AdminWaitlistPage />} />
                 <Route path="board"              element={<AdminMessageBoardPage />} />
                 <Route path="/admin/email-templates" element={<AdminEmailTemplatesPage />} />
-                <Route path="charts"   element={<AdminDashboardPage />} />
-                <Route path="calendar" element={<AdminCalendarPage />} />
-                <Route path="reports"  element={<AdminReportsEnhanced />} />
+                <Route path="charts"             element={<AdminDashboardPage />} />
+                <Route path="calendar"           element={<AdminCalendarPage />} />
+                <Route path="reports"            element={<AdminReportsEnhanced />} />
             </Route>
 
             {/* TEACHER */}
@@ -127,7 +116,6 @@ export default function App() {
                 <Route path="groups/:groupId/sessions"    element={<TeacherGroupSessionsPage />} />
                 <Route path="requests"                    element={<TeacherRequestsPage />} />
                 <Route path="password"                    element={<TeacherChangePasswordPage />} />
-                {/* NOU: Forum teacher — GENERAL + ANNOUNCEMENTS + grupele proprii */}
                 <Route path="board"                       element={<TeacherMessageBoardPage />} />
                 <Route path="calendar"                    element={<TeacherCalendarPage />} />
             </Route>
@@ -147,7 +135,6 @@ export default function App() {
                 <Route path="schedule"                          element={<ParentSchedulePage />} />
                 <Route path="schedule/:childId/:groupId"        element={<ParentGroupSchedulePage />} />
                 <Route path="password"                          element={<ParentChangePasswordPage />} />
-                {/* NOU: Forum parent — GENERAL + ANNOUNCEMENTS + grupele copiilor */}
                 <Route path="board"                             element={<ParentMessageBoardPage />} />
                 <Route path="calendar"                          element={<ParentCalendarPage />} />
             </Route>

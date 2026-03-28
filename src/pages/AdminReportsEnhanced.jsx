@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from "react";
 import {
-    Button, Card, Col, Descriptions, Row,
+    Button, Card, Col, Descriptions, Divider, Row,
     Space, Statistic, Table, Tag, Typography, message,
 } from "antd";
-import { DownloadOutlined, EyeOutlined, PrinterOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+    DownloadOutlined, EyeOutlined,
+    FilePdfOutlined, FileExcelOutlined,
+    PrinterOutlined, ReloadOutlined,
+} from "@ant-design/icons";
 import { http, HttpError } from "../http.jsx";
 import { usePrintAndExport } from "../usePrintAndExport.js";
 
@@ -14,6 +18,13 @@ function renderEnrolled(v)  { return <Tag color="blue">{v}</Tag>; }
 function renderTaught(v)    { return <Tag color="green">{v}</Tag>; }
 function renderCanceled(v)  { return v > 0 ? <Tag color="red">{v}</Tag> : <Tag>{v}</Tag>; }
 function renderPlanned(v)   { return <Tag color="orange">{v}</Tag>; }
+
+const RENDER_MAP = {
+    enrolledChildren: renderEnrolled,
+    taughtSessions:   renderTaught,
+    canceledSessions: renderCanceled,
+    plannedSessions:  renderPlanned,
+};
 
 const EXPORT_COLUMNS = [
     { title: "Grupă",         dataIndex: "groupName" },
@@ -26,18 +37,30 @@ const EXPORT_COLUMNS = [
     { title: "Planificate",   dataIndex: "plannedSessions" },
 ];
 
-const RENDER_MAP = {
-    enrolledChildren: renderEnrolled,
-    taughtSessions:   renderTaught,
-    canceledSessions: renderCanceled,
-    plannedSessions:  renderPlanned,
-};
+// ── Helper descărcare fișier binar de la server ───────────────────────────────
+async function downloadFromServer(url, filename) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const blob = await res.blob();
+    const link = document.createElement("a");
+    link.href     = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+}
 
 export default function AdminReportsEnhanced() {
     const [rows,           setRows]           = useState([]);
     const [loading,        setLoading]        = useState(false);
     const [selected,       setSelected]       = useState(null);
     const [detailsLoading, setDetailsLoading] = useState(false);
+
+    // Loading states pentru rapoartele server-side
+    const [loadingExcel,   setLoadingExcel]   = useState(false);
+    const [loadingPdfSum,  setLoadingPdfSum]  = useState(false);
+    const [loadingPdfLun,  setLoadingPdfLun]  = useState(false);
 
     const { printRef, handlePrint, exportExcel } = usePrintAndExport("Raport Grupe");
 
@@ -50,9 +73,15 @@ export default function AdminReportsEnhanced() {
         {
             title: "Acțiuni", key: "actions",
             render: (_, row) => (
-                <Button size="small" icon={<EyeOutlined />} onClick={() => loadDetails(row.groupId)}>
-                    Detalii
-                </Button>
+                <Space size="small">
+                    <Button size="small" icon={<EyeOutlined />} onClick={() => loadDetails(row.groupId)}>
+                        Detalii
+                    </Button>
+                    <Button size="small" icon={<FilePdfOutlined />} type="link"
+                        onClick={() => downloadFisaGrupa(row.groupId, row.groupName)}>
+                        PDF Fișă
+                    </Button>
+                </Space>
             ),
         },
     ];
@@ -83,6 +112,65 @@ export default function AdminReportsEnhanced() {
         }
     };
 
+    // ── Descărcări server-side ────────────────────────────────────────────────
+
+    const downloadExcel = async () => {
+        setLoadingExcel(true);
+        try {
+            await downloadFromServer(
+                "/api/admin/reports/groups/excel",
+                `raport_grupe_${new Date().toISOString().slice(0,10)}.xlsx`
+            );
+            message.success("Excel descărcat cu succes.");
+        } catch (e) {
+            message.error("Eroare la generarea Excel: " + e.message);
+        } finally {
+            setLoadingExcel(false);
+        }
+    };
+
+    const downloadPdfSumar = async () => {
+        setLoadingPdfSum(true);
+        try {
+            await downloadFromServer(
+                "/api/admin/reports/groups/pdf/sumar",
+                `sumar_grupe_${new Date().toISOString().slice(0,10)}.pdf`
+            );
+            message.success("PDF Sumar descărcat.");
+        } catch (e) {
+            message.error("Eroare la generarea PDF: " + e.message);
+        } finally {
+            setLoadingPdfSum(false);
+        }
+    };
+
+    const downloadPdfLunare = async () => {
+        setLoadingPdfLun(true);
+        try {
+            await downloadFromServer(
+                "/api/admin/reports/groups/pdf/lunare",
+                `prezente_lunare_${new Date().toISOString().slice(0,10)}.pdf`
+            );
+            message.success("PDF Prezențe Lunare descărcat.");
+        } catch (e) {
+            message.error("Eroare la generarea PDF: " + e.message);
+        } finally {
+            setLoadingPdfLun(false);
+        }
+    };
+
+    const downloadFisaGrupa = async (groupId, groupName) => {
+        try {
+            await downloadFromServer(
+                `/api/admin/reports/groups/${groupId}/pdf/fisa`,
+                `fisa_${groupName.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.pdf`
+            );
+            message.success(`Fișă grupă descărcată.`);
+        } catch (e) {
+            message.error("Eroare la generarea PDF: " + e.message);
+        }
+    };
+
     const exportCsv = async () => {
         try {
             const res = await fetch("/api/admin/reports/groups/csv");
@@ -109,14 +197,55 @@ export default function AdminReportsEnhanced() {
                 <Text type="secondary">Statistici sesiuni și prezențe per grupă.</Text>
             </div>
 
-            <Card>
+            {/* ── Rapoarte server-side (Excel + PDF) ────────────────────────── */}
+            <Card title="Rapoarte Complete (Server-side)">
+                <Row gutter={[12, 12]}>
+                    <Col>
+                        <Button
+                            icon={<FileExcelOutlined />}
+                            loading={loadingExcel}
+                            onClick={downloadExcel}
+                            style={{ color: "#217346", borderColor: "#217346" }}
+                        >
+                            Excel Complet (4 sheet-uri)
+                        </Button>
+                    </Col>
+                    <Col>
+                        <Button
+                            icon={<FilePdfOutlined />}
+                            loading={loadingPdfSum}
+                            onClick={downloadPdfSumar}
+                            danger
+                        >
+                            PDF Sumar Grupe
+                        </Button>
+                    </Col>
+                    <Col>
+                        <Button
+                            icon={<FilePdfOutlined />}
+                            loading={loadingPdfLun}
+                            onClick={downloadPdfLunare}
+                            danger
+                        >
+                            PDF Prezențe Lunare
+                        </Button>
+                    </Col>
+                </Row>
+                <Text type="secondary" style={{ fontSize: 12, marginTop: 8, display: "block" }}>
+                    Rapoartele Excel și PDF sunt generate de server — includ date complete, stiluri profesionale și sunt optimizate pentru imprimare.
+                    Fișa PDF per grupă este disponibilă în coloana "Acțiuni" din tabelul de mai jos.
+                </Text>
+            </Card>
+
+            {/* ── Tabel cu export simplu ─────────────────────────────────────── */}
+            <Card title="Statistici Grupe">
                 <Space style={{ marginBottom: 16 }} wrap>
                     <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Reîncarcă</Button>
                     <Button icon={<PrinterOutlined />} onClick={handlePrint} disabled={rows.length === 0}>Print</Button>
                     <Button icon={<DownloadOutlined />}
                         onClick={() => exportExcel(rows, EXPORT_COLUMNS, "raport_grupe", "Grupe")}
                         disabled={rows.length === 0}>
-                        Export Excel
+                        Export Excel (Browser)
                     </Button>
                     <Button icon={<DownloadOutlined />} onClick={exportCsv} disabled={rows.length === 0}>
                         Export CSV
@@ -141,6 +270,7 @@ export default function AdminReportsEnhanced() {
                     data={selected}
                     loading={detailsLoading}
                     exportExcel={exportExcel}
+                    onDownloadPdf={downloadFisaGrupa}
                     onClose={() => setSelected(null)}
                 />
             )}
@@ -148,7 +278,7 @@ export default function AdminReportsEnhanced() {
     );
 }
 
-function GroupDetails({ data, loading, exportExcel, onClose }) {
+function GroupDetails({ data, loading, exportExcel, onDownloadPdf, onClose }) {
     const { printRef, handlePrint } = usePrintAndExport(`Detalii ${data?.groupName || "Grupă"}`);
 
     if (loading) return <Card loading />;
@@ -171,6 +301,10 @@ function GroupDetails({ data, loading, exportExcel, onClose }) {
             title={`Detalii: ${data.groupName}`}
             extra={
                 <Space>
+                    <Button size="small" icon={<FilePdfOutlined />} danger
+                        onClick={() => onDownloadPdf(data.groupId, data.groupName)}>
+                        PDF Fișă
+                    </Button>
                     <Button size="small" icon={<PrinterOutlined />} onClick={handlePrint}>Print</Button>
                     <Button size="small" icon={<DownloadOutlined />}
                         onClick={() => exportExcel(statsRows, statsCols, `detalii_${data.groupName}`)}>

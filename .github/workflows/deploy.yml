@@ -1,13 +1,13 @@
 name: Deploy Frontend
 
 on:
-  workflow_dispatch:  # buton manual în GitHub Actions
+  workflow_dispatch:
 
 jobs:
   deploy:
     name: Deploy pe VPS
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout cod
         uses: actions/checkout@v4
@@ -22,25 +22,20 @@ jobs:
       - name: Copiază sursele pe server
         run: |
           rsync -avz --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
             -e "ssh -i ~/.ssh/deploy_key" \
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/proiectcrm/CRM_Frontend/
 
       - name: Rebuild și repornește frontend
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-            cd /opt/proiectcrm
-
-            # Curăță containerul vechi dacă există cu nume greșit
-            OLD=$(docker ps -aq --filter "name=crm_frontend" --filter "status=exited")
-            if [ -n "$OLD" ]; then
-              docker rm $OLD
-            fi
-
-            # Rebuild și repornire
-            docker-compose --env-file .env.production up --build -d frontend
-
-            # Verifică că a pornit
-            sleep 5
-            docker-compose ps frontend
-          EOF
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cd /opt/proiectcrm && \
+             OLD=\$(docker ps -aq --filter name=crm_frontend --filter status=exited) && \
+             [ -n \"\$OLD\" ] && docker rm \$OLD || true && \
+             docker-compose --env-file .env.production up --build -d frontend && \
+             sleep 5 && \
+             docker-compose ps frontend"

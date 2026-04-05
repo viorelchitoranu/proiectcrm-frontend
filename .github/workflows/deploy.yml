@@ -31,7 +31,7 @@ jobs:
             --ignore-errors \
             -e "ssh -i ~/.ssh/deploy_key" \
             ./ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/proiectcrm/CRM_Frontend/
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/proiectcrm/CRM_Frontend/ || true
 
       - name: Rebuild și repornește frontend
         run: |

@@ -22,6 +22,7 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
 
       - name: Copiază sursele pe server
+        continue-on-error: true
         run: |
           rsync -avz --delete \
             --exclude='.git' \
@@ -31,7 +32,7 @@ jobs:
             --ignore-errors \
             -e "ssh -i ~/.ssh/deploy_key" \
             ./ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/proiectcrm/CRM_Frontend/ || true
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/proiectcrm/CRM_Frontend/
 
       - name: Rebuild și repornește frontend
         run: |

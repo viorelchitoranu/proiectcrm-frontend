@@ -27,6 +27,8 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules' \
+            --exclude='.idea' \
+            --ignore-errors \
             -e "ssh -i ~/.ssh/deploy_key" \
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/proiectcrm/CRM_Frontend/

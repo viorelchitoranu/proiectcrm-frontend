@@ -38,8 +38,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash << 'EOF'
             cd /opt/proiectcrm
-            docker rm $(docker ps -aq --filter name=crm_frontend) 2>/dev/null || true
             docker-compose --env-file .env.production up --build -d frontend
             sleep 5
-            docker-compose ps frontend
+            docker-compose --env-file .env.production ps frontend
           EOF

@@ -93,6 +93,78 @@ async function request(method, path, { query, body } = {}) {
         throw new Error("Nu pot contacta serverul. Verifică backend-ul / proxy-ul Vite.");
     }
 
+    // Retry automat la 403 — CSRF token expirat
+    // Facem un GET la /api/auth/me pentru a reîmprospăta cookie-ul XSRF-TOKEN
+    // apoi retrimitbem request-ul original o singură dată
+    if (res.status === 403 && method !== "GET") {
+        try {
+            await fetch(buildUrl("/api/auth/me"), {
+                method: "GET",
+                credentials: "include",
+            });
+            // Retry cu noul CSRF token
+            const csrfHeader = { "X-XSRF-TOKEN": getCsrfToken() };
+            const hasBody = body !== undefined && body !== null;
+            res = await fetch(url, {
+                method,
+                credentials: "include",
+                headers: {
+                    ...(hasBody ? { "Content-Type": "application/json" } : {}),
+                    ...csrfHeader,
+                },
+                body: hasBody ? JSON.stringify(body) : undefined,
+            });
+        } catch { /* ignorăm eroarea de refresh */ }
+    }
+
+    // Retry automat la 403 — CSRF token expirat
+    // Facem un GET la /api/auth/me pentru a reîmprospăta cookie-ul XSRF-TOKEN
+    // apoi retrimitbem request-ul original o singură dată
+    if (res.status === 403 && method !== "GET") {
+        try {
+            await fetch(buildUrl("/api/auth/me"), {
+                method: "GET",
+                credentials: "include",
+            });
+            // Retry cu noul CSRF token
+            const csrfHeader = { "X-XSRF-TOKEN": getCsrfToken() };
+            const hasBody = body !== undefined && body !== null;
+            res = await fetch(url, {
+                method,
+                credentials: "include",
+                headers: {
+                    ...(hasBody ? { "Content-Type": "application/json" } : {}),
+                    ...csrfHeader,
+                },
+                body: hasBody ? JSON.stringify(body) : undefined,
+            });
+        } catch { /* ignorăm eroarea de refresh */ }
+    }
+
+    // Retry automat la 403 — CSRF token expirat
+    // Facem un GET la /api/auth/me pentru a reîmprospăta cookie-ul XSRF-TOKEN
+    // apoi retrimitbem request-ul original o singură dată
+    if (res.status === 403 && method !== "GET") {
+        try {
+            await fetch(buildUrl("/api/auth/me"), {
+                method: "GET",
+                credentials: "include",
+            });
+            // Retry cu noul CSRF token
+            const csrfHeader = { "X-XSRF-TOKEN": getCsrfToken() };
+            const hasBody = body !== undefined && body !== null;
+            res = await fetch(url, {
+                method,
+                credentials: "include",
+                headers: {
+                    ...(hasBody ? { "Content-Type": "application/json" } : {}),
+                    ...csrfHeader,
+                },
+                body: hasBody ? JSON.stringify(body) : undefined,
+            });
+        } catch { /* ignorăm eroarea de refresh */ }
+    }
+
     if (!res.ok) {
         const { details, rawText } = await parseErrorResponse(res);
         throw new HttpError(res.status, res.statusText, details, rawText);
